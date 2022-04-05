@@ -29,8 +29,54 @@
 	],
 	"activationEvents": [
 		"*",
-		"onCommand:gitpod.api.autoTunnel"
+		"onCommand:gitpod.api.autoTunnel",
+		"onAuthenticationRequest:gitpod"
 	],
+	"contributes": {
+		"authentication": [
+			{
+				"label": "Gitpod",
+				"id": "gitpod"
+			}
+		],
+		"configuration": [
+			{
+				"title": "Gitpod",
+				"properties": {
+					"gitpod.host": {
+						"type": "string",
+						"description": "Gitpod Service URL. Update this if you are using a Gitpod self-hosted installation.",
+						"default": "https://gitpod.io/",
+						"scope": "application"
+					}
+				}
+			},
+			{
+				"title": "Settings sync",
+				"properties": {
+					"configurationSync.store": {
+						"type": "object",
+						"description": "Settings Sync Provider configuration.",
+						"scope": "application"
+					}
+				}
+			}
+		],
+		"commands": [
+			{
+				"command": "gitpod.syncProvider.remove",
+				"category": "Settings Sync",
+				"enablement": "gitpod.addedSyncProvider",
+				"title": "Disable signing in with Gitpod"
+			},
+			{
+				"command": "gitpod.syncProvider.add",
+				"category": "Settings Sync",
+				"enablement": "!gitpod.addedSyncProvider",
+				"title": "Enable signing in with Gitpod"
+			}
+		]
+	},
 	"main": "./out/extension.js",
 	"scripts": {
 		"compile": "gulp compile-extension:gitpod",
@@ -38,16 +84,23 @@
 		"vscode:prepublish": "npm run compile"
 	},
 	"devDependencies": {
+		"@types/analytics-node": "^3.1.8",
+		"@types/crypto-js": "4.1.1",
 		"@types/node": "16.x",
 		"@types/node-fetch": "^2.5.12",
-		"@types/tmp": "^0.2.1"
+		"@types/tmp": "^0.2.1",
+		"@types/uuid": "8.0.0",
+		"@types/ws": "^7.2.6"
 	},
 	"dependencies": {
+		"@gitpod/gitpod-protocol": "main",
 		"@gitpod/local-app-api-grpcweb": "main",
 		"@improbable-eng/grpc-web-node-http-transport": "^0.14.0",
+		"analytics-node": "^6.0.0",
 		"node-fetch": "2.6.7",
+		"pkce-challenge": "^3.0.0",
 		"tmp": "^0.2.1",
-		"vscode-nls": "^5.0.0"
+		"uuid": "8.1.0"
 	},
 	"extensionDependencies": [
 		"ms-vscode-remote.remote-ssh"
