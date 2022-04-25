@@ -25,6 +25,8 @@ import { ILogService } from 'vs/platform/log/common/log';
 const ARE_AUTOMATIC_TASKS_ALLOWED_IN_WORKSPACE = 'tasks.run.allowAutomatic';
 
 export class RunAutomaticTasks extends Disposable implements IWorkbenchContribution {
+	protected automatedTasksAlreadyRan: boolean = false;
+
 	constructor(
 		@ITaskService private readonly taskService: ITaskService,
 		@IStorageService private readonly storageService: IStorageService,
@@ -32,6 +34,14 @@ export class RunAutomaticTasks extends Disposable implements IWorkbenchContribut
 		@ILogService private readonly logService: ILogService) {
 		super();
 		this.tryRunTasks();
+
+		// Listen for task runner registration changes and try to run tasks
+		// On windows hosts, the connection to the task host can fire very late leading to a race condition in which no tasks are ever run
+		this._register(this.taskService.onDidRegisterSupportedExecutions(() => {
+			if (!this.automatedTasksAlreadyRan) {
+				this.tryRunTasks();
+			}
+		}));
 	}
 
 	private async tryRunTasks() {
@@ -43,7 +53,7 @@ export class RunAutomaticTasks extends Disposable implements IWorkbenchContribut
 		}
 
 		this.logService.trace('RunAutomaticTasks: Checking if automatic tasks should run.');
-		const isFolderAutomaticAllowed = this.storageService.getBoolean(ARE_AUTOMATIC_TASKS_ALLOWED_IN_WORKSPACE, StorageScope.WORKSPACE, undefined);
+		const isFolderAutomaticAllowed = this.storageService.getBoolean(ARE_AUTOMATIC_TASKS_ALLOWED_IN_WORKSPACE, StorageScope.WORKSPACE, true);
 		await this.workspaceTrustManagementService.workspaceTrustInitialized;
 		const isWorkspaceTrusted = this.workspaceTrustManagementService.isWorkspaceTrusted();
 		// Only run if allowed. Prompting for permission occurs when a user first tries to run a task.
@@ -52,7 +62,8 @@ export class RunAutomaticTasks extends Disposable implements IWorkbenchContribut
 				let { tasks } = RunAutomaticTasks.findAutoTasks(this.taskService, workspaceTaskResult);
 				this.logService.trace(`RunAutomaticTasks: Found ${tasks.length} automatic tasks tasks`);
 
-				if (tasks.length > 0) {
+				if (tasks.length > 0 && !this.automatedTasksAlreadyRan) {
+					this.automatedTasksAlreadyRan = true;
 					RunAutomaticTasks.runTasks(this.taskService, tasks);
 				}
 			});

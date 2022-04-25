@@ -285,6 +285,12 @@ export abstract class AbstractTaskService extends Disposable implements ITaskSer
 			this.setTaskLRUCacheLimit();
 			return this.updateWorkspaceTasks(TaskRunSource.ConfigurationChange);
 		}));
+		this._register(this.onDidRegisterSupportedExecutions(() => {
+			if (!this._taskSystem && !this._workspaceTasksPromise) {
+				return;
+			}
+			this.updateWorkspaceTasks(TaskRunSource.ConfigurationChange);
+		}));
 		this._taskRunningState = TASK_RUNNING_STATE.bindTo(contextKeyService);
 		this._onDidStateChange = this._register(new Emitter());
 		this.registerCommands();
@@ -332,6 +338,10 @@ export abstract class AbstractTaskService extends Disposable implements ITaskSer
 			processContext.set(process && !isVirtual);
 		}
 		this._onDidRegisterSupportedExecutions.fire();
+	}
+
+	public get onDidRegisterSupportedExecutions(): Event<void> {
+		return this._onDidRegisterSupportedExecutions.event;
 	}
 
 	public get onDidStateChange(): Event<TaskEvent> {
