@@ -302,7 +302,7 @@ export abstract class AbstractTaskService extends Disposable implements ITaskSer
 			if (!this._taskSystem && !this._workspaceTasksPromise) {
 				return;
 			}
-			this.updateWorkspaceTasks(TaskRunSource.ConfigurationChange);
+			this._updateWorkspaceTasks(TaskRunSource.ConfigurationChange);
 		}));
 		this._taskRunningState = TASK_RUNNING_STATE.bindTo(_contextKeyService);
 		this._onDidStateChange = this._register(new Emitter());
