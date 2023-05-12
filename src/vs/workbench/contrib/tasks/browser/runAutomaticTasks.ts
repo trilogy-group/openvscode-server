@@ -36,6 +36,13 @@ export class RunAutomaticTasks extends Disposable implements IWorkbenchContribut
 				await this._tryRunTasks();
 			}
 		}));
+		// Listen for task runner registration changes and try to run tasks
+		// On windows hosts, the connection to the task host can fire very late leading to a race condition in which no tasks are ever run
+		this._register(this._taskService.onDidRegisterSupportedExecutions(() => {
+			if (!this._hasRunTasks && this._workspaceTrustManagementService.isWorkspaceTrusted()) {
+				this._tryRunTasks();
+			}
+		}));
 	}
 
 	private async _tryRunTasks() {
