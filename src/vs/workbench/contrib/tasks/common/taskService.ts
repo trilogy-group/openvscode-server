@@ -94,6 +94,7 @@ export interface ITaskService {
 	onDidChangeTaskSystemInfo: Event<void>;
 	readonly hasTaskSystemInfo: boolean;
 	registerSupportedExecutions(custom?: boolean, shell?: boolean, process?: boolean): void;
+	onDidRegisterSupportedExecutions: Event<void>;
 
 	extensionCallbackTaskComplete(task: Task, result: number | undefined): Promise<void>;
 }
