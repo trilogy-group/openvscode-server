@@ -8,13 +8,14 @@
   "engines": {
     "vscode": "0.10.x"
   },
-	"categories": [
+  "categories": [
     "Other"
   ],
   "activationEvents": [
     "*"
   ],
   "main": "./out/extension.js",
+  "browser": "./dist/browser/extension.js",
   "icon": "resources/icons/git.png",
   "scripts": {
     "compile": "gulp compile-extension:git-base",
@@ -65,6 +66,9 @@
         "filenames": [
           "git-rebase-todo"
         ],
+        "filenamePatterns": [
+          "**/rebase-merge/done"
+        ],
         "configuration": "./languages/git-rebase.language-configuration.json"
       },
       {
@@ -97,9 +101,6 @@
         "path": "./syntaxes/ignore.tmLanguage.json"
       }
     ]
-  },
-  "dependencies": {
-    "vscode-nls": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "16.x"

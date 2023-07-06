@@ -83,8 +83,8 @@ export class ExplorerModel implements IDisposable {
 }
 
 export class ExplorerItem {
-	protected _isDirectoryResolved: boolean;
-	public isError = false;
+	_isDirectoryResolved: boolean; // used in tests
+	public error: Error | undefined = undefined;
 	private _isExcluded = false;
 
 	public nestedParent: ExplorerItem | undefined;
@@ -120,8 +120,12 @@ export class ExplorerItem {
 		this._isExcluded = value;
 	}
 
-	get hasChildren() {
-		return this.isDirectory || this.hasNests;
+	hasChildren(filter: (stat: ExplorerItem) => boolean): boolean {
+		if (this.hasNests) {
+			return this.nestedChildren?.some(c => filter(c)) ?? false;
+		} else {
+			return this.isDirectory;
+		}
 	}
 
 	get hasNests() {
@@ -174,17 +178,13 @@ export class ExplorerItem {
 
 	private updateName(value: string): void {
 		// Re-add to parent since the parent has a name map to children and the name might have changed
-		if (this._parent) {
-			this._parent.removeChild(this);
-		}
+		this._parent?.removeChild(this);
 		this._name = value;
-		if (this._parent) {
-			this._parent.addChild(this);
-		}
+		this._parent?.addChild(this);
 	}
 
 	getId(): string {
-		return this.resource.toString();
+		return this.root.resource.toString() + '::' + this.resource.toString();
 	}
 
 	toString(): string {
@@ -245,7 +245,7 @@ export class ExplorerItem {
 		local._mtime = disk.mtime;
 		local._isDirectoryResolved = disk._isDirectoryResolved;
 		local._isSymbolicLink = disk.isSymbolicLink;
-		local.isError = disk.isError;
+		local.error = disk.error;
 
 		// Merge Children if resolved
 		if (mergingDirectories && disk._isDirectoryResolved) {
@@ -298,7 +298,7 @@ export class ExplorerItem {
 	}
 
 	fetchChildren(sortOrder: SortOrder): ExplorerItem[] | Promise<ExplorerItem[]> {
-		const nestingConfig = this.configService.getValue<IFilesConfiguration>({ resource: this.root.resource }).explorer.experimental.fileNesting;
+		const nestingConfig = this.configService.getValue<IFilesConfiguration>({ resource: this.root.resource }).explorer.fileNesting;
 
 		// fast path when the children can be resolved sync
 		if (nestingConfig.enabled && this.nestedChildren) {
@@ -310,13 +310,13 @@ export class ExplorerItem {
 				// Resolve metadata only when the mtime is needed since this can be expensive
 				// Mtime is only used when the sort order is 'modified'
 				const resolveMetadata = sortOrder === SortOrder.Modified;
-				this.isError = false;
+				this.error = undefined;
 				try {
 					const stat = await this.fileService.resolve(this.resource, { resolveSingleChildDescendants: true, resolveMetadata });
 					const resolved = ExplorerItem.create(this.fileService, this.configService, stat, this);
 					ExplorerItem.mergeLocalWithDisk(resolved, this);
 				} catch (e) {
-					this.isError = true;
+					this.error = e;
 					throw e;
 				}
 				this._isDirectoryResolved = true;
@@ -369,7 +369,7 @@ export class ExplorerItem {
 	private _fileNester: ExplorerFileNestingTrie | undefined;
 	private get fileNester(): ExplorerFileNestingTrie {
 		if (!this.root._fileNester) {
-			const nestingConfig = this.configService.getValue<IFilesConfiguration>({ resource: this.root.resource }).explorer.experimental.fileNesting;
+			const nestingConfig = this.configService.getValue<IFilesConfiguration>({ resource: this.root.resource }).explorer.fileNesting;
 			const patterns = Object.entries(nestingConfig.patterns)
 				.filter(entry =>
 					typeof (entry[0]) === 'string' && typeof (entry[1]) === 'string' && entry[0] && entry[1])
@@ -407,12 +407,8 @@ export class ExplorerItem {
 	 * Moves this element under a new parent element.
 	 */
 	move(newParent: ExplorerItem): void {
-		if (this.nestedParent) {
-			this.nestedParent.removeChild(this);
-		}
-		if (this._parent) {
-			this._parent.removeChild(this);
-		}
+		this.nestedParent?.removeChild(this);
+		this._parent?.removeChild(this);
 		newParent.removeChild(this); // make sure to remove any previous version of the file if any
 		newParent.addChild(this);
 		this.updateResource(true);

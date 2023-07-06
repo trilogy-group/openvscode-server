@@ -71,7 +71,7 @@ export function setup(logger: Logger) {
 
 		it.skip(`verifies that 'Tweet us feedback' pop-up appears when clicking on 'Feedback' icon`, async function () {
 			const app = this.app as Application;
-			if (app.quality === Quality.Dev) {
+			if (app.quality === Quality.Dev || app.quality === Quality.OSS) {
 				return this.skip();
 			}
 

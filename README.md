@@ -44,6 +44,39 @@ _Note_: Feel free to use the `nightly` tag to test the latest version, i.e. `git
 	```
 - For additional possibilities, please consult the `Dockerfile` for OpenVSCode Server at https://github.com/gitpod-io/openvscode-releases/
 
+#### Pre-installing VSCode extensions
+
+You can pre-install vscode extensions in such a way:
+
+```dockerfile
+FROM gitpod/openvscode-server:latest
+
+ENV OPENVSCODE_SERVER_ROOT="/home/.openvscode-server"
+ENV OPENVSCODE="${OPENVSCODE_SERVER_ROOT}/bin/openvscode-server"
+
+SHELL ["/bin/bash", "-c"]
+RUN \
+    # Direct download links to external .vsix not available on https://open-vsx.org/
+    # The two links here are just used as example, they are actually available on https://open-vsx.org/
+    urls=(\
+        https://github.com/rust-lang/rust-analyzer/releases/download/2022-12-26/rust-analyzer-linux-x64.vsix \
+        https://github.com/VSCodeVim/Vim/releases/download/v1.24.3/vim-1.24.3.vsix \
+    )\
+    # Create a tmp dir for downloading
+    && tdir=/tmp/exts && mkdir -p "${tdir}" && cd "${tdir}" \
+    # Download via wget from $urls array.
+    && wget "${urls[@]}" && \
+    # List the extensions in this array
+    exts=(\
+        # From https://open-vsx.org/ registry directly
+        gitpod.gitpod-theme \
+        # From filesystem, .vsix that we downloaded (using bash wildcard '*')
+        "${tdir}"/* \
+    )\
+    # Install the $exts
+    && for ext in "${exts[@]}"; do ${OPENVSCODE} --install-extension "${ext}"; done
+```
+
 ### Linux
 
 - [Download the latest release](https://github.com/gitpod-io/openvscode-server/releases/latest)
@@ -57,7 +90,7 @@ _Note_: Feel free to use the `nightly` tag to test the latest version, i.e. `git
   From the possible entrypoint arguments, the most notable ones are
 	- `--port` - the port number to start the server on, this is 3000 by default
 	- `--without-connection-token` - used by default in the docker image
-	- `--connection-token` & `--connection-secret` for securing access to the IDE, you can read more about it in [Securing access to your IDE](#securing-access-to-your-ide).
+	- `--connection-token` & `--connection-token-file` for securing access to the IDE, you can read more about it in [Securing access to your IDE](#securing-access-to-your-ide).
 	-  `--host` - determines the host the server is listening on. It defaults to `localhost`, so for accessing remotely it's a good idea to add `--host 0.0.0.0` to your launch arguments.
 
 - Visit the URL printed in your terminal.
@@ -66,9 +99,9 @@ _Note_: You can use [pre-releases](https://github.com/gitpod-io/openvscode-serve
 
 ### Securing access to your IDE
 
-Since OpenVSCode Server v1.64, you can access the Web UI without authentication (anyone can access the IDE using just the hostname and port), if you need some kind of basic authentication then you can start the server with `--connection-token YOUR_TOKEN`, the provided `YOUR_TOKEN` will be used and the authenticated URL will be displayed in your terminal once you start the server. You can also create a plaintext file with the desired token as its contents and provide it to the server with `--connection-secret YOUR_SECRET_FILE`.
+Since OpenVSCode Server v1.64, you can access the Web UI without authentication (anyone can access the IDE using just the hostname and port), if you need some kind of basic authentication then you can start the server with `--connection-token YOUR_TOKEN`, the provided `YOUR_TOKEN` will be used and the authenticated URL will be displayed in your terminal once you start the server. You can also create a plaintext file with the desired token as its contents and provide it to the server with `--connection-token-file YOUR_SECRET_TOKEN_FILE`.
 
-If you want to use a connection token and are working with OpenVSCode Server via [the Docker image](https://hub.docker.com/r/gitpod/openvscode-server), you will have to edit the `ENTRYPOINT` in [the Dockerfile](https://github.com/gitpod-io/openvscode-releases/blob/eb59ab37e23f8d17532b4af4de37eafaf48037a5/Dockerfile#L64) or modify it with the [`entrypoint` option](https://docs.docker.com/compose/compose-file/compose-file-v3/#entrypoint) when working with `docker-compose`.
+If you want to use a connection token and are working with OpenVSCode Server via [the Docker image](https://hub.docker.com/r/gitpod/openvscode-server), you will have to edit the `ENTRYPOINT` in [the Dockerfile](https://github.com/gitpod-io/openvscode-releases/blob/main/Dockerfile) or modify it with the [`entrypoint` option](https://docs.docker.com/compose/compose-file/compose-file-v3/#entrypoint) when working with `docker-compose`.
 
 ### Deployment guides
 

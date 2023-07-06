@@ -14,9 +14,13 @@ import { URI, UriComponents } from 'vs/base/common/uri';
 import { request } from 'vs/base/parts/request/browser/request';
 import product from 'vs/platform/product/common/product';
 import { isFolderToOpen, isWorkspaceToOpen } from 'vs/platform/window/common/window';
-import { create, ICredentialsProvider, IURLCallbackProvider, IWorkbenchConstructionOptions, IWorkspace, IWorkspaceProvider } from 'vs/workbench/workbench.web.main';
+import { create } from 'vs/workbench/workbench.web.main';
 import { posix } from 'vs/base/common/path';
 import { ltrim } from 'vs/base/common/strings';
+import type { ICredentialsProvider } from 'vs/platform/credentials/common/credentials';
+import type { IURLCallbackProvider } from 'vs/workbench/services/url/browser/urlService';
+import type { IWorkbenchConstructionOptions } from 'vs/workbench/browser/web.api';
+import type { IWorkspace, IWorkspaceProvider } from 'vs/workbench/services/host/browser/browserHostService';
 
 interface ICredential {
 	service: string;
@@ -192,6 +196,10 @@ class LocalStorageURLCallbackProvider extends Disposable implements IURLCallback
 	private checkCallbacksTimeout: unknown | undefined = undefined;
 	private onDidChangeLocalStorageDisposable: IDisposable | undefined;
 
+	constructor(private readonly _callbackRoute: string) {
+		super();
+	}
+
 	create(options: Partial<UriComponents> = {}): URI {
 		const id = ++LocalStorageURLCallbackProvider.REQUEST_ID;
 		const queryParams: string[] = [`vscode-reqid=${id}`];
@@ -215,7 +223,7 @@ class LocalStorageURLCallbackProvider extends Disposable implements IURLCallback
 			this.startListening();
 		}
 
-		return URI.parse(window.location.href).with({ path: '/callback', query: queryParams.join('&') });
+		return URI.parse(window.location.href).with({ path: this._callbackRoute, query: queryParams.join('&') });
 	}
 
 	private startListening(): void {
@@ -492,10 +500,14 @@ function doCreateUri(path: string, queryValues: Map<string, string>): URI {
 	if (!configElement || !configElementAttribute) {
 		throw new Error('Missing web configuration element');
 	}
-	const originalConfig: IWorkbenchConstructionOptions & { folderUri?: UriComponents; workspaceUri?: UriComponents } = JSON.parse(configElementAttribute);
-	const config: IWorkbenchConstructionOptions & { folderUri?: UriComponents; workspaceUri?: UriComponents } = {
+	const originalConfig: IWorkbenchConstructionOptions & { folderUri?: UriComponents; workspaceUri?: UriComponents; callbackRoute: string } = JSON.parse(configElementAttribute);
+	const config: IWorkbenchConstructionOptions & { folderUri?: UriComponents; workspaceUri?: UriComponents; callbackRoute: string } = {
 		remoteAuthority: window.location.host,
-		developmentOptions: originalConfig.developmentOptions
+		developmentOptions: originalConfig.developmentOptions,
+		settingsSyncOptions: originalConfig.settingsSyncOptions,
+		folderUri: originalConfig.folderUri,
+		workspaceUri: originalConfig.workspaceUri,
+		callbackRoute: originalConfig.callbackRoute
 	};
 
 	// Create workbench
@@ -505,7 +517,7 @@ function doCreateUri(path: string, queryValues: Map<string, string>): URI {
 			...config.developmentOptions
 		},
 		workspaceProvider: WorkspaceProvider.create(config),
-		urlCallbackProvider: new LocalStorageURLCallbackProvider(),
+		urlCallbackProvider: new LocalStorageURLCallbackProvider(config.callbackRoute),
 		credentialsProvider: config.remoteAuthority ? undefined : new LocalStorageCredentialsProvider() // with a remote, we don't use a local credentials provider
 	});
 })();
